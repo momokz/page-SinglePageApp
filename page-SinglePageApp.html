@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>vue</title>
+    <style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    html {
+        overflow-y: scroll;
+        overflow-x: hidden;
+    }
+    .title {
+        text-align: center;
+        font-size: 20px;
+        font-weight: bold;
+        padding: 10px 0;
+        border-bottom: 1px solid #ccc;
+    }
+    .home {
+        width: 400px;
+        padding: 10px;
+        margin: 10px auto;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+    }
+    .home ul {
+        margin: 0;
+        padding: 0;
+    }
+    .home li {
+        list-style: none;
+        padding: 15px;
+        padding-top: 30px;
+        border-bottom: 1px solid #ccc;
+        text-align: center;
+        cursor: pointer;
+    }
+    .detail {
+        width: 660px;
+        margin: 10px auto;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 10px;
+    }
+    .detail li {
+        list-style: none;
+        text-align: center;
+    }
+    .detail li img {
+        padding: 10px;
+    }
+    .detail li p:nth-child(2) {
+        padding: 10px;
+    }
+    .detail li p:last-child {
+        text-align: left;
+        font-size: 16px;
+        line-height: 28px;
+    }
+    .return-home {
+        cursor: pointer;
+        text-align: right;
+        padding: 10px 0;
+        border-bottom: 1px solid #ccc;
+    }
+    .page {
+        margin: 10px 0;
+        display: -webkit-flex;
+        display: -moz-flex;
+        display: -ms-flex;
+        display: -o-flex;
+        display: flex;
+        -webkit-flex-wrap: wrap;
+        -moz-flex-wrap: wrap;
+        -ms-flex-wrap: wrap;
+        -o-flex-wrap: wrap;
+        flex-wrap: wrap;
+    }
+    .page span {
+        padding: 10px 3px;
+        flex-grow: 1;
+        text-align: center;
+        cursor: pointer;
+    }
+    .page span.active {
+        color: #f00;
+    }
+    /* load */
+
+    @keyframes lds-dual-ring {
+        0% {
+            -webkit-transform: rotate(0);
+            transform: rotate(0);
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+            transform: rotate(360deg);
+        }
+    }
+    @-webkit-keyframes lds-dual-ring {
+        0% {
+            -webkit-transform: rotate(0);
+            transform: rotate(0);
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+            transform: rotate(360deg);
+        }
+    }
+    .lds-dual-ring {
+        position: relative;
+    }
+    .lds-dual-ring div {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        top: 20px;
+        left: 20px;
+        border-radius: 50%;
+        border: 8px solid #000;
+        border-color: #f00 transparent #f00 transparent;
+        -webkit-animation: lds-dual-ring 1s linear infinite;
+        animation: lds-dual-ring 1s linear infinite;
+    }
+    .lds-dual-ring {
+        width: 150px !important;
+        height: 150px !important;
+        margin: 0 auto;
+    }
+    /* transition */
+
+    .slide-enter-active, .slide-leave-active {
+        transition: all .6s;
+    }
+    .slide-enter, .slide-leave-to {
+        opacity: 0;
+    }
+    .slide-enter {
+        transform: translateX(2rem);
+    }
+    .slide-leave-to {
+        transform: translateX(-2rem);
+    }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <transition name="slide" mode="out-in">
+            <router-view class="view"></router-view>
+        </transition>
+    </div>
+    <script src="scripts/vue.js"></script>
+    <script src="scripts/vue-router.js"></script>
+    <script src="scripts/axios.js"></script>
+    <script>
+    Vue.prototype.$http = axios;
+
+    var Home = {
+        template: `
+            <div class="home">
+                <div class="title">{{title}}</div>
+                <ul v-show="!isLoad">
+                    <li v-for="(item, index) in items" @click="getDetail(item.id)">
+                        <img :src="item.images.large" alt="">
+                        <p>{{item.title}}</p>
+                    </li>
+                    <div class="page">
+                        <span v-for="page in pages" :class="[page==pageActive ? 'active' : '']" @click="tapPage(page)">[{{page}}]</span>
+                    </div>
+                </ul>
+                <div class="load" v-show="isLoad">
+                    <div class="lds-css">
+                        <div style="width:100%;height:100%" class="lds-dual-ring">
+                            <div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`,
+        data() {
+            return {
+                items: [],
+                pages: [],
+                start: 0,
+                url: 'https://api.douban.com/v2/movie/in_theaters',
+                isLoad: true,
+                count: 2,
+                title: '',
+                pageActive: 1
+            }
+        },
+        watch: {
+            '$route': 'loadMore'
+        },
+        created() {
+            this.loadMore();
+            this.loadPage();
+        },
+        methods: {
+            loadMore() {
+                this.isLoad = true;
+                this.items = [];
+                this.$http.get(this.url + '?count=' + this.count + '&start=' + this.start)
+                    .then(response => {
+                        this.title = response.data.title;
+                        response.data.subjects.forEach(item => {
+                            this.items.push(item);
+                        })
+                        this.isLoad = false;
+                    })
+                    .catch(err => {
+                        console.log(err);
+                    })
+            },
+            loadPage() {
+                this.$http.get(this.url)
+                    .then(response => {
+                        console.log(response);
+                        var target = response.data.count / this.count;
+                        for (var i = 1; i <= target; i++) {
+                            this.pages.push(i);
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                    })
+            },
+            getDetail(id) {
+                router.push({
+                    name: 'detail',
+                    params: {
+                        id: id
+                    }
+                })
+            },
+            tapPage(page) {
+                this.pageActive = page;
+                this.start = this.count * page - 2;
+                this.loadMore();
+            }
+        }
+    };
+
+    var Detail = {
+        template: `
+            <div class="detail">
+                <div class="return-home" @click="returnHome"><<返回列表页</div>
+                <ul v-show="!isLoad">
+                    <li>
+                        <img :src="item.images.large" alt="">
+                        <p>{{item.title}}</p>
+                        <p>{{item.summary}}</p>
+                    </li>
+                </ul>
+                <div class="load" v-show="isLoad">
+                    <div class="lds-css">
+                        <div style="width:100%;height:100%" class="lds-dual-ring">
+                            <div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`,
+        data() {
+            return {
+                id: this.$route.params.id,
+                item: '',
+                isLoad: true
+            }
+        },
+        created() {
+            this.loadMore()
+        },
+        watch: {
+            '$route': 'loadMore'
+        },
+        methods: {
+            loadMore() {
+                this.isLoad = true;
+                this.$http.get('https://api.douban.com/v2/movie/subject/' + this.id)
+                    .then(response => {
+                        this.item = response.data;
+                        console.log(this.item);
+                        this.isLoad = false;
+                    })
+                    .catch(err => {
+                        console.log(err);
+                    })
+            },
+            returnHome() {
+                /*this.$router.push({
+                    name: 'home'
+                });*/
+                this.$router.go(-1);
+            }
+        }
+    }
+
+    var router = new VueRouter({
+        routes: [{
+            path: '/',
+            name: 'home',
+            component: Home
+        }, {
+            path: '/detail/:id',
+            name: 'detail',
+            component: Detail
+        }]
+    })
+
+    new Vue({
+        el: '#app',
+        router
+    });
+    </script>
+</body>
+
+</html>
